@@ -14,4 +14,17 @@ Pure HTML/JS/canvas — no build step, no dependencies. Open `index.html` in a b
 `Space` stage · `Shift/Ctrl` throttle · `Z/X` full/cut · `A/D` rotate · `T` SAS · `1-5` SAS modes · `G` auto-ascent · `M` map · `. ,` time warp · `P` arm chutes · `[ ]` switch vessel · wheel = zoom · `Esc` pause
 
 ## Development
-`tests/*.test.js` run the simulation headlessly under Node (`node tests/scenarios.test.js`, `node tests/sim.test.js 1 600`).
+No build step. The simulation core (`util`, `planet`, `parts`, `craft`, `vessel`, `world`, `presets`) has no DOM dependency, so it runs headlessly under Node:
+
+```
+node tests/scenarios.test.js    # staging, crashes, joint failure, heating, rails warp (all PASS/FAIL)
+node tests/sweep.js             # flies every example vehicle to orbit with the autopilot
+node tests/sim.test.js 1 600    # telemetry trace of example #1 for 600 s
+node tests/reentry.test.js      # orbit -> deorbit -> reentry heating -> parachute
+node tests/legs.test.js         # landing-leg contact/impact tolerance
+```
+
+Source layout: `js/vessel.js` (rigid body, aero, heating, joint loads), `js/world.js` (time warp, explosions, autopilot, craft analysis), `js/planet.js` (atmosphere + Kepler maths), `js/builder.js` (assembly building), `js/flight.js` (HUD/input), `js/render.js` (canvas drawing).
+
+## Ideas for next steps
+Moon / second body with patched conics, RCS and docking, fairings and struts, engine clustering, more planets, career/contracts, 3D rendering.
