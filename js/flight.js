@@ -23,7 +23,7 @@
       e.preventDefault();
       const f = Math.exp(-e.deltaY * 0.0015);
       if (F.cam.map) F.cam.mapZoom = clamp(F.cam.mapZoom * f, 2e-8, 2e-3);
-      else F.cam.zoom = clamp(F.cam.zoom * f, 1e-5, 120);
+      else { F.cam.zoom = clamp(F.cam.zoom * f, 1e-5, 120); F.autoZoom = false; }
     }, { passive: false });
     canvas.addEventListener('mousedown', e => { if (F.cam.map) mapDrag = { x: e.clientX, y: e.clientY, mx: F.cam.mapX, my: F.cam.mapY }; });
     window.addEventListener('mouseup', () => (mapDrag = null));
@@ -36,6 +36,7 @@
     click('#f-stagebtn', () => doStage());
     click('#f-sas', () => toggleSAS());
     click('#f-mapbtn', () => toggleMap());
+    click('#f-sound', () => { SS.Audio.setOn(!SS.Audio.on); $('#f-sound').textContent = SS.Audio.on ? '🔊' : '🔇'; });
     click('#f-warpup', () => warp(1));
     click('#f-warpdn', () => warp(-1));
     click('#f-aptoggle', () => toggleAP());
@@ -62,13 +63,14 @@
   };
 
   F.open = function (craftDoc) {
+    SS.Audio.start();
     doc = SS.Craft.clone(craftDoc);
     F.world = new SS.World(SS.App.settings());
     const v = F.world.launch(doc);
     F.world.autopilot.targetAlt = (+$('#f-apalt').value || 150) * 1000;
     active = true; paused = false; outcomeShown = false; flightStart = performance.now(); msgSeen = 0;
     hud.banner.classList.add('hidden'); hud.pause.classList.add('hidden');
-    F.cam.map = false; F.cam.target = null;
+    F.cam.map = false; F.cam.target = null; F.autoZoom = true; F.lastBound = v.boundR;
     resize();
     F.cam.zoom = clamp((H * 0.55) / Math.max(10, v.boundR * 2), 1, 30);
     F.cam.x = v.x; F.cam.y = v.y;
@@ -77,7 +79,7 @@
     $('#f-hint').classList.remove('hidden');
     cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(loop);
   };
-  F.close = function () { active = false; cancelAnimationFrame(raf); F.world = null; };
+  F.close = function () { active = false; cancelAnimationFrame(raf); F.world = null; SS.Audio.stop(); };
   F.refreshSettings = function () { if (F.world) Object.assign(F.world.settings, SS.App.settings()); };
 
   function resize() {
@@ -90,7 +92,13 @@
   }
 
   /* -------------------------------------------------------------- commands */
-  function doStage() { const v = F.world.active; if (v && v.hasControl) { v.stage(); $('#f-hint').classList.add('hidden'); } }
+  function doStage() {
+    const v = F.world.active;
+    if (v && v.hasControl) {
+      if (v.stageNum === 0 && v.throttle < 0.01 && !v.engines.some(e => e.def.engine.solid && e.stage === 0)) v.throttle = 1;
+      v.stage(); $('#f-hint').classList.add('hidden');
+    }
+  }
   function toggleSAS() { const v = F.world.active; if (v) { v.sasOn = !v.sasOn; v.sasTarget = v.theta; } }
   function toggleMap() {
     F.cam.map = !F.cam.map;
@@ -118,7 +126,7 @@
   }
 
   function onKey(e) {
-    if (!active || e.target.tagName === 'INPUT') return;
+    if (!active || e.target.tagName === 'INPUT' || !$('#modal').classList.contains('hidden')) return;
     const k = e.key.toLowerCase();
     if (e.ctrlKey && k === 'a') return;
     F.keys.add(k);
@@ -141,7 +149,7 @@
     else if (k === 'p') { if (v) { for (const c of v.chutes) if (!c.chuteState) c.chuteState = 1; w.msg('Parachutes armed', 'info'); } }
     else if (k === 'g') toggleAP();
     else if (v && ['1', '2', '3', '4', '5'].includes(k)) { v.sasMode = ['hold', 'prograde', 'retrograde', 'radialOut', 'radialIn'][+k - 1]; v.sasOn = true; if (k === '1') v.sasTarget = v.theta; w.autopilot.on && w.autopilot.stop(); }
-    else if (k === 'c') { F.cam.target = null; F.cam.zoom = clamp((H * 0.55) / Math.max(10, (v ? v.boundR : 10) * 2), 1, 30); }
+    else if (k === 'c') { F.cam.target = null; F.autoZoom = true; F.cam.zoom = clamp((H * 0.55) / Math.max(10, (v ? v.boundR : 10) * 2), 1, 30); }
     if (['arrowup', 'arrowdown', 'tab'].includes(k)) e.preventDefault();
   }
 
@@ -166,6 +174,14 @@
       }
     }
     w.update(paused ? 0 : dt);
+    SS.Audio.update(w, paused);
+    // camera: re-frame automatically when the craft shrinks (stage separation) unless the player zoomed by hand
+    if (F.autoZoom && w.active && !F.cam.map) {
+      const goal = clamp((H * 0.5) / Math.max(6, w.active.boundR * 2), 1.5, 40);
+      if (w.active.boundR < F.lastBound * 0.8) F.zoomGoal = goal;
+      F.lastBound = w.active.boundR;
+      if (F.zoomGoal) { F.cam.zoom += (F.zoomGoal - F.cam.zoom) * Math.min(1, dt * 2.5); if (Math.abs(F.zoomGoal - F.cam.zoom) < 0.02 * F.zoomGoal) F.zoomGoal = 0; }
+    }
     // camera
     const tgt = F.cam.target && F.cam.target.alive ? F.cam.target : w.active;
     if (tgt) { F.cam.x = tgt.x; F.cam.y = tgt.y; }

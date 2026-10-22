@@ -31,7 +31,7 @@
     $('#b-sym').addEventListener('click', () => { B.sym = !B.sym; refreshToolbar(); });
     $('#b-undo').addEventListener('click', B.doUndo);
     $('#b-redo').addEventListener('click', B.doRedo);
-    $('#b-new').addEventListener('click', () => { if (!B.doc.parts.length || confirm('Discard the current craft?')) { B.pushUndo(); B.doc = Craft.create('My Rocket'); B.held = null; changed(); } });
+    $('#b-new').addEventListener('click', () => { if (!B.doc.parts.length || confirm('Discard the current craft?')) { B.pushUndo(); B.doc = Craft.create('My Rocket'); B.held = null; fit(); changed(); } });
     $('#b-fit').addEventListener('click', fit);
     $('#b-auto').addEventListener('click', () => { B.autoStage = true; Craft.autoStage(B.doc.parts); changed(true); });
     $('#b-autotoggle').addEventListener('change', e => { B.autoStage = e.target.checked; });
@@ -293,7 +293,7 @@
     B.held = null; B.snap = null; dirty = true;
   }
   function onKey(e) {
-    if (!active || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (!active || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || !$('#modal').classList.contains('hidden')) return;
     if (e.key === 'Escape') { if (B.held) cancelHeld(); }
     else if ((e.key === 'Delete' || e.key === 'Backspace') && !B.held) { const p = partAt(B.mouse.wx, B.mouse.wy); if (p) removePart(p); }
     else if (e.key === 's' && !e.ctrlKey) { B.sym = !B.sym; refreshToolbar(); }

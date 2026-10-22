@@ -13,5 +13,15 @@
       desc: 'Two-stage kerolox rocket with a heat-shielded capsule. Enough delta-v for low Earth orbit and a ballistic return.',
       doc: B('Orbiter-1', ['chute_s', 'capsule_s', 'shield_s', 'tank_s4', 'eng_vac_s', 'dec_s', 'adapter_sm', 'tank_m8', 'tank_m8', 'eng_m', [8, 'fin_l', -2.5]]),
     },
+    {
+      name: 'Voyager Heavy',
+      desc: 'Three-crew capsule on a 3.75 m core stage with two strap-on solid boosters. Stage order: boosters drop first, then the core, then the upper stage.',
+      doc: B('Voyager Heavy', [
+        'chute_m', 'capsule_m', 'shield_m', 'tank_m4', 'eng_vac_m', 'dec_m', 'adapter_ml', 'tank_l8', 'tank_l8', 'eng_l',
+        [8, 'dec_rad', 2], // 10,11
+        [10, 'srb_m', -1.3, false, 1], [11, 'srb_m', -1.3, false, -1],
+        [8, 'fin_l', -2.5],
+      ]),
+    },
   ];
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -79,27 +79,27 @@
   add({ id: 'eng_vac_m', cat: 'Engines', name: 'Vac-450 (upper stage)', desc: 'Large vacuum engine for orbital insertion.',
     kind: 'engine', wTop: 2.5, wBot: 2.4, h: 3.4, mass: 1700, nodeBotOnly: 'decoupler', engine: { vacThrust: 450e3, ispVac: 348, ispSL: 190, gimbal: 4 }, color: '#8a8f99', maxTemp: 1900, noseR: 1.2 });
   add({ id: 'eng_l', cat: 'Engines', name: 'Titan-L 4.5 MN', desc: 'Enormous first-stage engine for super-heavy lifters.',
-    kind: 'engine', wTop: 3.75, wBot: 3.2, h: 4.5, mass: 7500, nodeBotOnly: 'decoupler', engine: { slThrust: 4500e3, ispVac: 300, ispSL: 263, gimbal: 5 }, color: '#8a8f99', maxTemp: 1900, noseR: 1.6 });
+    kind: 'engine', wTop: 3.75, wBot: 3.2, h: 4.5, mass: 7500, nodeBotOnly: 'decoupler', engine: { slThrust: 4500e3, ispVac: 320, ispSL: 285, gimbal: 5 }, color: '#8a8f99', maxTemp: 1900, noseR: 1.6 });
   add({ id: 'srb_s', cat: 'Engines', name: 'Solid Booster 1.25 m', desc: 'Cannot be throttled or shut down. Radial or inline.',
     kind: 'srb', wTop: 1.0, wBot: 1.25, h: 8, mass: 700, fuel: 6500, radial: true, nodeBot: false, jd: 1.25,
     engine: { slThrust: 520e3, ispVac: 262, ispSL: 236, gimbal: 0, solid: true }, color: '#d9d9d6', maxTemp: 1500, cdF: 0.2, noseR: 0.3 });
   add({ id: 'srb_m', cat: 'Engines', name: 'Solid Booster 2.5 m', desc: 'Big strap-on booster. Cannot be throttled.',
     kind: 'srb', wTop: 1.6, wBot: 2.5, h: 14, mass: 4200, fuel: 40000, radial: true, nodeBot: false, jd: 2.0,
-    engine: { slThrust: 3200e3, ispVac: 270, ispSL: 245, gimbal: 0, solid: true }, color: '#d9d9d6', maxTemp: 1500, cdF: 0.2, noseR: 0.5 });
+    engine: { slThrust: 1800e3, ispVac: 270, ispSL: 245, gimbal: 0, solid: true }, color: '#d9d9d6', maxTemp: 1500, cdF: 0.2, noseR: 0.5 });
 
   /* ---- Separation ---- */
   add({ id: 'dec_s', cat: 'Staging', name: 'Decoupler 1.25 m', desc: 'Separates everything below it when staged.', kind: 'decoupler', w: 1.25, h: 0.25, mass: 60, decoupler: { impulse: 2500 }, color: '#d98b2b' });
   add({ id: 'dec_m', cat: 'Staging', name: 'Decoupler 2.5 m', desc: 'Separates everything below it when staged.', kind: 'decoupler', w: 2.5, h: 0.3, mass: 220, decoupler: { impulse: 9000 }, color: '#d98b2b' });
   add({ id: 'dec_l', cat: 'Staging', name: 'Decoupler 3.75 m', desc: 'Separates everything below it when staged.', kind: 'decoupler', w: 3.75, h: 0.4, mass: 620, decoupler: { impulse: 20000 }, color: '#d98b2b' });
-  add({ id: 'dec_rad', cat: 'Staging', name: 'Radial Decoupler', desc: 'Mount on the side of a stack, then attach a booster to its outer face.', kind: 'decoupler', w: 0.35, h: 0.6, mass: 45, radial: true, nodeTop: false, nodeBot: false, jd: 1.8, decoupler: { impulse: 4000, radial: true }, color: '#d98b2b' });
+  add({ id: 'dec_rad', cat: 'Staging', name: 'Radial Decoupler', desc: 'Mount on the side of a stack, then attach a booster to its outer face.', kind: 'decoupler', w: 0.35, h: 0.6, mass: 45, radial: true, nodeTop: false, nodeBot: false, jd: 3, decoupler: { impulse: 4000, radial: true }, color: '#d98b2b' });
 
   /* ---- Recovery / landing ---- */
   add({ id: 'shield_s', cat: 'Recovery', name: 'Heat Shield 1.25 m', desc: 'Ablative shield that doubles as a decoupler. Mount under a capsule and fly it blunt-end first.', kind: 'shield', w: 1.25, h: 0.14, mass: 180, nodeTop: true, nodeBot: true, shield: { ablator: 60 }, decoupler: { impulse: 1800 }, crash: 16, maxTemp: 3200, cp: 1500, cdF: 0.9, cdR: 1.35, noseR: 1.8, color: '#5a4a3f' });
   add({ id: 'shield_m', cat: 'Recovery', name: 'Heat Shield 2.5 m', desc: 'Ablative shield that doubles as a decoupler. Fly it blunt-end first.', kind: 'shield', w: 2.5, h: 0.2, mass: 700, nodeTop: true, nodeBot: true, shield: { ablator: 260 }, decoupler: { impulse: 6000 }, crash: 16, maxTemp: 3200, cp: 1500, cdF: 0.9, cdR: 1.35, noseR: 3.5, color: '#5a4a3f' });
   add({ id: 'chute_s', cat: 'Recovery', name: 'Parachute', desc: 'Mount on top. Reefs automatically at high speed; tears if opened too fast.', kind: 'chute', w: 0.6, h: 0.4, mass: 45, nodeTop: false, chute: { area: 150, cd: 1.5, fMax: 220e3 }, maxTemp: 500, cdF: 0.5, color: '#e2602a', crash: 10 });
   add({ id: 'chute_m', cat: 'Recovery', name: 'Large Parachute', desc: 'For heavy capsules.', kind: 'chute', w: 1.0, h: 0.5, mass: 160, nodeTop: false, chute: { area: 380, cd: 1.5, fMax: 600e3 }, maxTemp: 500, cdF: 0.5, color: '#e2602a', crash: 10 });
-  add({ id: 'leg_s', cat: 'Recovery', name: 'Landing Leg', desc: 'Absorbs landings. Mirror it for a pair.', kind: 'leg', w: 1.2, h: 2.4, mass: 90, radial: true, nodeTop: false, nodeBot: false, jd: 1.0, latArea: 0.5, crash: 14, contactK: 35, color: '#9aa1ad' });
-  add({ id: 'leg_l', cat: 'Recovery', name: 'Heavy Landing Leg', desc: 'For booster landings.', kind: 'leg', w: 2.4, h: 4.8, mass: 520, radial: true, nodeTop: false, nodeBot: false, jd: 1.8, latArea: 1.2, crash: 16, contactK: 25, color: '#9aa1ad' });
+  add({ id: 'leg_s', cat: 'Recovery', name: 'Landing Leg', desc: 'Absorbs landings. Mount on a lower tank or engine so its foot hangs below the nozzle. Mirror it for a pair.', kind: 'leg', w: 1.6, h: 3.6, mass: 90, radial: true, nodeTop: false, nodeBot: false, jd: 1.0, latArea: 0.5, crash: 14, contactK: 35, color: '#9aa1ad' });
+  add({ id: 'leg_l', cat: 'Recovery', name: 'Heavy Landing Leg', desc: 'For booster landings.', kind: 'leg', w: 3.2, h: 7, mass: 520, radial: true, nodeTop: false, nodeBot: false, jd: 1.8, latArea: 1.2, crash: 16, contactK: 25, color: '#9aa1ad' });
 
   SS.Parts = {
     list: defs,

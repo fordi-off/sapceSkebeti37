@@ -45,11 +45,11 @@
         if (Math.abs(A.y - da.h / 2 - (B.y + db.h / 2)) > 0.03) continue;
         const lo = Math.max(A.x - da.wBot / 2, B.x - db.wTop / 2), hi = Math.min(A.x + da.wBot / 2, B.x + db.wTop / 2);
         if (hi - lo < 0.05) continue;
-        js.push({ a: A.id, b: B.id, x: (lo + hi) / 2, y: A.y - da.h / 2, d: hi - lo, radial: false });
+        js.push({ a: A.id, b: B.id, x: (lo + hi) / 2, y: A.y - da.h / 2, d: hi - lo, dm: hi - lo, radial: false });
       }
       if (A.parent != null) {
         const P = byId.get(A.parent);
-        if (P) js.push({ a: P.id, b: A.id, x: P.x + A.side * (Craft.widthAt(P, A.y) / 2), y: A.y, d: da.jd, radial: true });
+        if (P) js.push({ a: P.id, b: A.id, x: P.x + A.side * (Craft.widthAt(P, A.y) / 2), y: A.y, d: da.jd, dm: Math.max(da.jd, 0.35 * da.h), radial: true });
       }
     }
     return js;
@@ -147,8 +147,8 @@
         last = Craft.add(doc, op, last ? last.x : 0, y);
         made.push(last);
       } else {
-        const [parentIdx, type, dy, mirror = true] = op;
-        const sides = mirror ? [1, -1] : [1];
+        const [parentIdx, type, dy, mirror = true, only] = op;
+        const sides = only ? [only] : mirror ? [1, -1] : [1];
         for (const s of sides) made.push(radial(parentIdx, type, s, dy));
       }
     }

@@ -126,6 +126,20 @@
       return best === Infinity ? -1 : best;
     }
 
+    /** Parts that the next stage activation would fire. */
+    nextGroup() {
+      const n = this.nextStage();
+      return n < 0 ? [] : this.parts.filter(p => p.stage === n && p.def.stageable && !p.spent);
+    }
+
+    /** True when the next stage only drops spent hardware (decouplers) while some motors have burnt out. */
+    dropSpentReady() {
+      const grp = this.nextGroup();
+      if (!grp.length || !grp.every(p => p.def.decoupler)) return false;
+      const lit = this.engines.filter(e => e.ignited);
+      return lit.length > 0 && lit.some(e => e.flameout) && lit.filter(e => e.flameout).every(e => e.def.engine.solid) && lit.some(e => e.def.engine.solid && e.flameout);
+    }
+
     stage() {
       const n = this.nextStage();
       if (n < 0) { this.world && this.world.msg('No more stages', 'warn'); return false; }
@@ -377,7 +391,7 @@
             const ch = p.def.chute;
             const qopen = (0.8 * ch.fMax) / (ch.cd * ch.area);
             const q = half * sp2;
-            const target = q < qopen ? 1 : 0.12;
+            const target = q < qopen ? 1 : 0.07;
             p.chuteFrac = target > p.chuteFrac ? Math.min(target, p.chuteFrac + dt * 0.25) : target;
             const F = q * ch.cd * ch.area * p.chuteFrac;
             if (F > ch.fMax) { p.torn = true; this.destroyQueue.push([p, 'chute torn', true]); }
@@ -531,7 +545,7 @@
         const M = sm.C - (Jx * sm.Dy - Jy * sm.Dx);
         const axial = sm.Dx * axX + sm.Dy * axY, shear = sm.Dx * latX + sm.Dy * latY;
         const d = j.d;
-        const Sa = 1.6e6 * d * d * mult, Ss = 0.95e6 * d * d * mult, Sm = 0.5e6 * d * d * d * mult;
+        const Sa = 1.6e6 * d * d * mult, Ss = 0.95e6 * d * d * mult, Sm = 0.5e6 * j.dm * j.dm * j.dm * mult;
         const ratio = Math.abs(axial) / Sa + Math.abs(shear) / Ss + Math.abs(M) / Sm;
         const p = this.partById.get(id);
         p.strain = ratio;

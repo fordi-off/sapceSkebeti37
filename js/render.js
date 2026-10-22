@@ -163,6 +163,19 @@
     c.restore();
   };
 
+  /* ------------------------------------------------------------------ soft particle sprites */
+  const sprites = {};
+  function sprite(kind) {
+    if (sprites[kind] || typeof document === 'undefined') return sprites[kind];
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const x = c.getContext('2d');
+    const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    if (kind === 'fire') { gr.addColorStop(0, 'rgba(255,255,235,1)'); gr.addColorStop(0.25, 'rgba(255,200,110,0.85)'); gr.addColorStop(0.6, 'rgba(255,110,30,0.4)'); gr.addColorStop(1, 'rgba(255,60,0,0)'); }
+    else if (kind === 'smoke') { gr.addColorStop(0, 'rgba(220,220,220,0.9)'); gr.addColorStop(0.6, 'rgba(200,200,200,0.45)'); gr.addColorStop(1, 'rgba(190,190,190,0)'); }
+    x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    return (sprites[kind] = c);
+  }
+
   /* ------------------------------------------------------------------ stars / clouds */
   const stars = [];
   for (let i = 0; i < 260; i++) stars.push([Math.random(), Math.random(), Math.random() * 0.8 + 0.2, Math.random() * 1.4 + 0.4]);
@@ -192,7 +205,6 @@
   R.drawFlight = function (ctx, world, cam, W, H, now) {
     const v = cam.target || world.active;
     ctx.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);
-    if (!v) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); return; }
     const alt = Math.hypot(cam.x, cam.y) - P.R;
     const camPhi = Math.atan2(cam.y, cam.x);
     const [top, hor, f] = skyColors(alt);
@@ -312,20 +324,16 @@
       }
     }
 
+    const smokeS = sprite('smoke'), fireS = sprite('fire');
     for (const p of world.particles) {
       if (p.type !== 'smoke') continue;
       const [rx, ry] = toRel(p.x, p.y);
       if (Math.abs(rx * S) > W || Math.abs(ry * S) > H) continue;
-      const k = p.life / p.max;
-      if (p.type === 'smoke') {
-        ctx.fillStyle = `rgba(210,210,210,${((1 - k) * 0.22).toFixed(2)})`;
-        ctx.beginPath(); ctx.arc(rx, ry, p.size * (0.6 + k * 2.2), 0, 7); ctx.fill();
-      } else {
-        ctx.fillStyle = k < 0.5 ? '#ffb347' : '#555';
-        const sz = Math.max(p.size, 1.5 / S);
-        ctx.fillRect(rx - sz / 2, ry - sz / 2, sz, sz);
-      }
+      const k = p.life / p.max, rad = p.size * (0.8 + k * 2.4);
+      ctx.globalAlpha = (1 - k) * 0.5;
+      ctx.drawImage(smokeS, rx - rad, ry - rad, rad * 2, rad * 2);
     }
+    ctx.globalAlpha = 1;
     // vessels
     for (const vs of world.vessels) {
       if (!vs.alive) continue;
@@ -346,6 +354,7 @@
       ctx.translate(-vs.cx, -vs.cy);
       R.drawVessel(ctx, vs, S, now, world);
       ctx.restore();
+      R.drawPlasma(ctx, vs, rx, ry, S);
     }
 
     // particles
@@ -355,12 +364,12 @@
       const [rx, ry] = toRel(p.x, p.y);
       if (Math.abs(rx * S) > W || Math.abs(ry * S) > H) continue;
       const k = p.life / p.max;
-      let rad = p.size * (p.type === 'exhaust' ? 1 + k * 1.5 : 0.5 + k * 1.3);
-      if (rad * S < 0.5) rad = 0.5 / S;
-      const a = (1 - k) * (p.type === 'exhaust' ? 0.3 : 0.8);
-      ctx.fillStyle = k < 0.3 ? `rgba(255,${(230 - k * 300) | 0},${(160 - k * 400) | 0},${a.toFixed(2)})` : `rgba(255,${(150 - k * 90) | 0},40,${a.toFixed(2)})`;
-      ctx.beginPath(); ctx.arc(rx, ry, rad, 0, 7); ctx.fill();
+      let rad = p.size * (p.type === 'exhaust' ? 1 + k * 1.6 : 0.6 + k * 1.4) * 1.25;
+      if (rad * S < 1.5) rad = 1.5 / S;
+      ctx.globalAlpha = (1 - k) * (p.type === 'exhaust' ? 0.55 : 0.9);
+      ctx.drawImage(fireS, rx - rad, ry - rad, rad * 2, rad * 2);
     }
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     for (const p of world.particles) {
       if (p.type !== 'debris') continue;
@@ -386,6 +395,33 @@
       rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(1, `rgba(0,0,0,${a})`);
       ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
     }
+  };
+
+  /** Shock-layer glow ahead of a fast vessel in thick-enough air. */
+  R.drawPlasma = function (ctx, vs, rx, ry, S) {
+    const t = vs.tel;
+    if (t.speed < 1800 || t.rho < 1e-7) return;
+    const power = Math.sqrt(t.rho) * t.speed * t.speed * t.speed;
+    const k = clamp((Math.log10(power + 1) - 8.2) / 1.6, 0, 1);
+    if (k < 0.02) return;
+    const vx = vs.vx - -P.omega * vs.y, vy = vs.vy - P.omega * vs.x;
+    const sp = Math.hypot(vx, vy) || 1;
+    const dx = vx / sp, dy = vy / sp;
+    const rad = Math.max(vs.boundR * 1.1, 2);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const cx = rx + dx * rad * 0.55, cy = ry + dy * rad * 0.55;
+    const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    gr.addColorStop(0, `rgba(255,235,200,${(0.75 * k).toFixed(2)})`); gr.addColorStop(0.35, `rgba(255,140,60,${(0.5 * k).toFixed(2)})`); gr.addColorStop(1, 'rgba(255,60,20,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, 7); ctx.fill();
+    // wake streaks
+    ctx.strokeStyle = `rgba(255,170,90,${(0.16 * k).toFixed(2)})`; ctx.lineWidth = Math.max(1.2 / S, rad * 0.07);
+    for (let i = -2; i <= 2; i++) {
+      const px = -dy * i * rad * 0.18, py = dx * i * rad * 0.18;
+      const len = rad * (2.5 + Math.random() * 1.5);
+      ctx.beginPath(); ctx.moveTo(rx + px, ry + py); ctx.lineTo(rx + px - dx * len, ry + py - dy * len); ctx.stroke();
+    }
+    ctx.restore();
   };
 
   R.drawVessel = function (ctx, vs, S, now, world) {

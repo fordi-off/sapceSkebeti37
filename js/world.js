@@ -61,7 +61,7 @@
       if (v.landed) return why('Cannot time-warp while touching the ground');
       if (v.tel.alt < P.spaceAlt + 10000) return why('Cannot time-warp inside the atmosphere');
       if (v.tel.thrust > 1) return why('Cannot time-warp while engines are firing');
-      if (!this.railsSafe(v, 30)) return why('Orbit dips into the atmosphere - physics warp only');
+      if (!this.railsSafe(v, this.warp * 0.1)) return why('Orbit dips into the atmosphere - physics warp only');
       return true;
     }
 
@@ -73,8 +73,7 @@
         // periapsis inside the sensible-space ceiling: only OK if we are nowhere near it
         const tPe = el.timeToPe;
         const tAp = el.timeToAp;
-        const span = Math.max(dt, 1);
-        if (Math.min(tPe, el.period - tPe) < span * 3 + 600) return false;
+        if (Math.min(tPe, el.period - tPe) < dt * 1.5 + 60) return false;
       }
       return true;
     }
@@ -90,7 +89,8 @@
           ctl.name = old.name;
           old.throttle = 0;
         }
-        if (!all.some(v => v.hasControl) && this.active === old) {
+        if (!all.some(v => v.hasControl) && this.active === old && !this.lostCommand) {
+          this.lostCommand = true;
           this.msg('Command module lost', 'bad');
         }
       }
@@ -289,6 +289,7 @@
       this.world = world;
       this.on = false;
       this.targetAlt = 150000;
+      this.profExp = 0.85; this.profAlt = 70000; this.mode = 'alt';
       this.phase = 'idle';
       this.stageCool = 0;
       this.t = 0;
@@ -296,6 +297,13 @@
     }
     start() {
       this.on = true; this.phase = 'launch'; this.t = 0;
+      // pitch programme: heavier thrust-to-weight needs an earlier, flatter turn
+      const v = this.world.active;
+      let thr = 0;
+      if (v) for (const e of v.engines) if (e.stage === 0 || e.ignited) thr += e.def.engine.slThrust;
+      const twr = v ? thr / (v.M * P.g0) : 1.3;
+      this.profExp = clamp(1 - 0.28 * (twr - 1), 0.4, 0.95);
+      this.profAlt = 70000;
       this.world.msg('Ascent autopilot engaged', 'info');
     }
     stop(msg) {
@@ -324,7 +332,7 @@
       v.steer = 0;
       // automatic staging when the active engines have run dry
       const burning = v.engines.some(e => e.ignited && !e.flameout);
-      if (v.throttle > 0.05 && !burning && this.stageCool <= 0 && v.nextStage() >= 0) { v.stage(); this.stageCool = 1.0; }
+      if (v.throttle > 0.05 && this.stageCool <= 0 && v.nextStage() >= 0 && (!burning || v.dropSpentReady())) { v.stage(); this.stageCool = 1.0; }
       if (v.throttle > 0.05 && !burning && v.nextStage() < 0 && this.phase !== 'launch') { this.stop('Autopilot: out of propellant'); return; }
       switch (this.phase) {
         case 'launch':
@@ -342,7 +350,10 @@
           if (alt < 45000) { vx -= -P.omega * v.y; vy -= P.omega * v.x; }
           const ex = dir < 0 ? ny : -ny, ey = dir < 0 ? -nx : nx; // east unit vector
           const gam = Math.atan2(vx * nx + vy * ny, vx * ex + vy * ey);
-          const prof = (Math.PI / 2) * (1 - Math.pow(clamp(alt / (this.profAlt || 70000), 0, 1), this.profExp || 0.85));
+          const profAlt = (Math.PI / 2) * (1 - Math.pow(clamp(alt / (this.profAlt), 0, 1), this.profExp));
+          const spd = Math.hypot(v.vx, v.vy);
+          const profSpd = (Math.PI / 2) * (1 - Math.pow(clamp(spd / (this.spdRef || 7500), 0, 1), this.spdExp || 0.35));
+          const prof = this.mode === 'alt' ? profAlt : this.mode === 'speed' ? profSpd : Math.min(profAlt, profSpd);
           const maxAoA = (alt < 45000 ? 6 : 25) * Math.PI / 180;
           const nose = clamp(prof, gam - maxAoA, gam + maxAoA);
           v.sasMode = 'hold';
@@ -375,12 +386,16 @@
         case 'circ': {
           if (w.warpIndex > 0) w.setWarp(0);
           if (v.nextStage() >= 0 && !v.engines.some(e => e.ignited && !e.flameout)) { if (this.stageCool <= 0) { v.stage(); this.stageCool = 1; } }
-          // aim along local horizontal, tilted to hold altitude
-          const err = target - alt;
+          // altitude-hold pitch: thrust must cancel gravity minus the centrifugal term, plus steer vertical speed to the target
           const dirSign = (v.x * v.vy - v.y * v.vx) >= 0 ? 1 : -1;
-          const tilt = clamp(err * 0.00002 - tel.vs * 0.01, -0.4, 0.4);
+          const rr = el.r, nx = v.x / rr, ny = v.y / rr;
+          const vh = Math.abs(-ny * v.vx + nx * v.vy);
+          const vsT = clamp((target - alt) * 0.002, -20, 20);
+          const aReq = P.mu / (rr * rr) - (vh * vh) / rr + (vsT - tel.vs) / 6;
+          const aT = Math.max(0.3, this.availThrust(v) / v.M);
+          const pitch = Math.asin(clamp(aReq / aT, -0.9, 0.9));
           v.sasMode = 'hold';
-          v.sasTarget = up + dirSign * (Math.PI / 2 - tilt);
+          v.sasTarget = up + dirSign * (Math.PI / 2 - pitch);
           v.throttle = el.pe - P.R > target * 0.9 ? 0.25 : 1;
           if (el.pe - P.R >= target * 0.97 || (el.e < 0.004 && alt > P.spaceAlt)) {
             v.throttle = 0; this.stop('Autopilot: orbit achieved!');
@@ -432,7 +447,8 @@
       for (const e of lit) { thrSL += e.def.engine.slThrust; thrVac += e.def.engine.vacThrust; }
       let dv = 0, t = 0, dt = 0.25;
       while (t < 5000) {
-        const thrust = v.propulsion(dt, 0);
+        let thrust = v.propulsion(dt, 0);
+        if (v.dropSpentReady()) { v.stage(); v.massProps(); for (const e of v.engines) if (e.ignited && !e.flameout && !e.def.engine.solid) e.thr = 1; }
         if (thrust < 1) break;
         v.massProps();
         dv += (thrust / v.M) * dt; t += dt;
