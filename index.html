@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbital Forge — Space Flight Simulator</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="bg"></canvas>
+
+<!-- ============================ MAIN MENU ============================ -->
+<section id="menu" class="screen">
+  <div class="menu-box">
+    <div class="logo">ORBITAL<span>FORGE</span></div>
+    <div class="tag">Space Flight Simulator · build it · launch it · try not to explode it</div>
+    <div class="menu-buttons">
+      <button class="big primary" id="m-build">🛠 Vehicle Assembly</button>
+      <button class="big" id="m-quick">🚀 Quick Launch <small id="m-quick-name"></small></button>
+      <button class="big" id="m-examples">📦 Example Vehicles</button>
+      <button class="big" id="m-load">📂 Load Craft</button>
+      <button class="big" id="m-settings">⚙ Simulation Settings</button>
+      <button class="big" id="m-help">❓ How to Play</button>
+    </div>
+    <div class="menu-foot">Real 2D rigid-body physics · ISA atmosphere · Mach-dependent drag · aerodynamic heating · joint stress &amp; break-up · Kepler orbits &amp; time warp</div>
+  </div>
+</section>
+
+<!-- ============================ BUILDER ============================ -->
+<section id="builder" class="screen hidden">
+  <header class="bar">
+    <button id="b-menu">← Menu</button>
+    <input id="b-name" type="text" maxlength="40" value="My Rocket" spellcheck="false">
+    <button id="b-new">New</button>
+    <button id="b-save">Save</button>
+    <button id="b-load">Load</button>
+    <button id="b-export">Export</button>
+    <button id="b-import">Import</button>
+    <span class="sep"></span>
+    <button id="b-undo" title="Ctrl+Z">↶ Undo</button>
+    <button id="b-redo" title="Ctrl+Y">↷ Redo</button>
+    <button id="b-sym" class="on" title="Key: S">Symmetry: Mirror</button>
+    <button id="b-fit" title="Key: F">Fit view</button>
+    <span class="grow"></span>
+    <button id="b-launch" class="go">Launch ▶</button>
+  </header>
+  <aside class="left">
+    <div id="b-tabs" class="tabs"></div>
+    <div id="b-parts" class="parts"></div>
+    <div class="tips">
+      <b>Build tips</b><br>
+      Click a part, then click near another part to snap it. Side-mounted parts (boosters, fins, legs) snap to the sides — with mirror symmetry they come in pairs.
+      Click a placed part to pick it up (with everything beyond it), right-click to delete. Mouse wheel zooms, Shift-drag or middle-drag pans.
+      Keep the <span style="color:#ffa63d">CoP</span> below the <span style="color:#5ad1ff">CoM</span> for a stable rocket.
+    </div>
+  </aside>
+  <canvas id="b-canvas"></canvas>
+  <aside class="right">
+    <h3>Analysis</h3>
+    <div id="b-stats"></div>
+    <h3>Staging <label class="chk"><input type="checkbox" id="b-autotoggle" checked> auto</label><button id="b-auto" class="mini">Re-run</button></h3>
+    <div id="b-staging"></div>
+    <div class="hint">Stage 0 fires on liftoff; Space in flight fires the next one.</div>
+  </aside>
+</section>
+
+<!-- ============================ FLIGHT ============================ -->
+<section id="flight" class="screen hidden">
+  <canvas id="f-canvas"></canvas>
+
+  <div id="f-msgs"></div>
+
+  <div class="hud panel tl" id="f-data">
+    <div class="hdr"><span id="f-vname">—</span><span id="f-met">T+ 0:00</span></div>
+    <div class="grid">
+      <span>ALTITUDE</span><b id="f-alt">0 m</b>
+      <span id="f-spdlbl" class="link" title="click to switch">SURFACE</span><b id="f-spd">0</b>
+      <span>VERT. SPEED</span><b id="f-vs">0</b>
+      <span>MACH</span><b id="f-mach">—</b>
+      <span>DYN. PRESSURE</span><b id="f-q">0</b>
+      <span>ANGLE OF ATTACK</span><b id="f-aoa">—</b>
+      <span>G-FORCE</span><b id="f-g">0</b>
+      <span>THRUST</span><b id="f-thrust">0</b>
+      <span>TWR</span><b id="f-twr">0</b>
+      <span>MASS</span><b id="f-mass">0</b>
+      <span>PROPELLANT</span><b id="f-fuel">0</b>
+    </div>
+    <div class="heat"><span>HEAT</span><div class="hb"><i id="f-heatbar"></i></div></div>
+  </div>
+
+  <div class="hud panel tr">
+    <button id="f-mapbtn" title="Key: M">🌍 Map</button>
+    <button id="f-warpdn" title="Key: ,">«</button>
+    <span id="f-warp">Realtime</span>
+    <button id="f-warpup" title="Key: .">»</button>
+    <button id="f-menubtn" title="Esc">☰</button>
+  </div>
+
+  <div class="hud panel bl">
+    <div class="thrcol">
+      <div id="f-thr-label">THR <b id="f-thrval">0%</b></div>
+      <div id="f-thr" class="thrbox" title="Click/drag to set throttle"><div id="f-thrbar"></div></div>
+    </div>
+    <div class="ctrl">
+      <button id="f-stagebtn" class="stage">STAGE <small>[space]</small></button>
+      <div class="row2">
+        <button id="f-sas" class="on" title="T">SAS</button>
+        <button id="f-frame" title="Reference frame for prograde/retrograde">SURF</button>
+      </div>
+      <div class="row2 modes">
+        <button id="f-sas-hold" title="1: hold heading">⌖</button>
+        <button id="f-sas-prograde" title="2: prograde">⊙</button>
+        <button id="f-sas-retrograde" title="3: retrograde">⊗</button>
+        <button id="f-sas-radialOut" title="4: radial out">⇧</button>
+        <button id="f-sas-radialIn" title="5: radial in">⇩</button>
+      </div>
+      <div class="row2 ap">
+        <button id="f-aptoggle" title="G: autonomous gravity-turn ascent to orbit">AUTO ASCENT</button>
+        <label>to <input id="f-apalt" type="number" value="150" min="80" max="2000" step="10"> km</label>
+      </div>
+      <div id="f-apstate">MANUAL</div>
+    </div>
+    <div id="f-stages"></div>
+  </div>
+
+  <div class="hud panel bc">
+    <canvas id="f-nav" width="150" height="150"></canvas>
+    <div class="orb grid">
+      <span>APOAPSIS</span><b id="f-ap">–</b>
+      <span>PERIAPSIS</span><b id="f-pe">–</b>
+      <span>TIME TO Ap</span><b id="f-tap">–</b>
+      <span>TIME TO Pe</span><b id="f-tpe">–</b>
+      <span>PERIOD</span><b id="f-per">–</b>
+      <span>ECCENTRICITY</span><b id="f-ecc">–</b>
+    </div>
+  </div>
+
+  <div id="f-hint" class="panel hint-box">
+    <b>Flight controls</b><br>
+    <kbd>Space</kbd> stage / ignite · <kbd>Shift</kbd>/<kbd>Ctrl</kbd> throttle · <kbd>Z</kbd>/<kbd>X</kbd> full/cut · <kbd>A</kbd>/<kbd>D</kbd> rotate · <kbd>T</kbd> SAS · <kbd>M</kbd> map · <kbd>.</kbd>/<kbd>,</kbd> time warp · <kbd>G</kbd> autopilot · <kbd>P</kbd> arm chutes · wheel zoom
+  </div>
+
+  <div id="f-banner" class="banner hidden">
+    <h2 id="f-b-title"></h2><p id="f-b-text"></p><div id="f-b-stats"></div>
+    <div class="btns"><button id="f-b-continue">Keep flying</button><button id="f-b-revert">Back to Assembly</button><button id="f-b-restart" class="go">Relaunch</button></div>
+  </div>
+
+  <div id="f-pause" class="overlay hidden">
+    <div class="dlg">
+      <h2>Paused</h2>
+      <button id="f-resume" class="big primary">Resume</button>
+      <button id="f-settings" class="big">Simulation Settings</button>
+      <button id="f-restart" class="big">Restart flight</button>
+      <button id="f-revert" class="big">Revert to Assembly</button>
+      <button id="f-quit" class="big">Main menu</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MODAL ============================ -->
+<div id="modal" class="overlay hidden"><div class="dlg wide"><h2 id="modal-title"></h2><div id="modal-body"></div><div id="modal-btns" class="btns"></div></div></div>
+
+<script src="js/util.js"></script>
+<script src="js/planet.js"></script>
+<script src="js/parts.js"></script>
+<script src="js/craft.js"></script>
+<script src="js/vessel.js"></script>
+<script src="js/world.js"></script>
+<script src="js/presets.js"></script>
+<script src="js/render.js"></script>
+<script src="js/builder.js"></script>
+<script src="js/flight.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

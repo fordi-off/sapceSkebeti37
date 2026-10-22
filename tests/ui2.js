@@ -1,0 +1,26 @@
+const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const out = process.argv[2];
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
+  const page = await browser.newPage({ viewport: { width: 1360, height: 800 } });
+  const errors = [];
+  page.on('pageerror', e => errors.push('PAGEERR ' + e.message + '\n' + (e.stack || '')));
+  page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text()); });
+  await page.goto('file://' + process.cwd() + '/index.html');
+  await page.click('#m-quick');
+  await page.waitForTimeout(400);
+  await page.keyboard.press('g');
+  const adv = async (s) => { await page.evaluate(s => { const w = SS.Flight.world; for (let i = 0; i < s * 30; i++) w.update(1 / 30); }, s); await page.waitForTimeout(150); };
+  const shot = async n => { await page.screenshot({ path: out + '/' + n + '.png' }); };
+  await adv(8); await shot('a1');
+  await adv(30); await shot('a2');
+  await adv(40); await shot('a3');
+  await adv(40); await shot('a4');
+  await adv(40); await shot('a5');
+  await page.evaluate(() => { SS.Flight.cam.zoom = 0.0004; });
+  await adv(1); await shot('a6');
+  await page.keyboard.press('m'); await page.waitForTimeout(300); await shot('a7');
+  console.log(await page.evaluate(() => JSON.stringify(SS.Flight.world.events.filter(e => e.text).map(e => Math.round(e.t) + ' ' + e.text))));
+  console.log(errors.join('\n') || 'no errors');
+  await browser.close();
+})();
